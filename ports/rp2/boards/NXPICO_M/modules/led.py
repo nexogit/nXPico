@@ -19,7 +19,7 @@ class Led():
     # Initialize the LED on pin 23 (WS2812) with 1 LED setting to off (0, 0, 0) as default value
     def __init__(self):
         self._leds = const(1)
-        self._pin = Pin(23, Pin.OUT)
+        self._pin = Pin("LED", Pin.OUT)
         self._value = [0,0,0]
         self._np = neopixel.NeoPixel(self._pin, self._leds)
         self.set_color([0,0,0])
