@@ -5,9 +5,18 @@ import nrf9151, time
 # Class has simple write and read methods but also methods for functionality. this methods wait for the modem response and return True if the expected response is received, False otherwise.
 class Modem:
 
+    _instance = None
+
+    # Implementing the singleton pattern to ensure that only one instance of the Modem class exists.
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    # The __init__ method initializes the modem by setting up valid CFUN modes and clearing any initial data from the modem. It ensures that the modem is ready for communication.
     def __init__(self):
         self._CFUN_VALID_MODES = {1, 2, 4, 20, 21, 30, 31, 40, 41, 44}
-
         nrf9151.init()
         nrf9151.read(256)  # Clear any initial data from the modem
     
@@ -81,5 +90,3 @@ class Modem:
         else:
             print("[Modem] Failed to set CFUN to mode", mode)
             return False
-        
-
