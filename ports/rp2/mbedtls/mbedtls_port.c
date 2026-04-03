@@ -47,4 +47,24 @@ mbedtls_ms_time_t mbedtls_ms_time(void) {
     current_ms = rp2_rtctime_seconds(tv) * 1000;
     return current_ms;
 }
+
+#if defined(MBEDTLS_ENTROPY_HARDWARE_ALT)
+#include "pico/rand.h"
+// Weak definition: overridden by extmod/mbedtls/mbedtls_alt.c when it compiles.
+int __attribute__((weak)) mbedtls_hardware_poll(void *data, unsigned char *output, size_t len, size_t *olen) {
+    (void)data;
+    *olen = 0;
+    while (*olen < len) {
+        uint64_t rand_data = get_rand_64();
+        size_t to_copy = len - *olen;
+        if (to_copy > sizeof(rand_data)) {
+            to_copy = sizeof(rand_data);
+        }
+        memcpy(output + *olen, &rand_data, to_copy);
+        *olen += to_copy;
+    }
+    return 0;
+}
+#endif
+
 #endif

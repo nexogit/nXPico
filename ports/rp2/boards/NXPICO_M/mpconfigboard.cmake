@@ -6,5 +6,8 @@ set(PICO_BOARD "pico2")
 # Board specific frozen manifest
 set(MICROPY_FROZEN_MANIFEST ${MICROPY_BOARD_DIR}/manifest.py)
 
+# Use board-specific mbedTLS config (extends rp2 port config with x509gen features)
+set(MBEDTLS_CONFIG_FILE ${MICROPY_BOARD_DIR}/mbedtls_config_board.h)
+
 # Automatically include board C modules (no USER_C_MODULES argument needed)
 list(APPEND USER_C_MODULES ${MICROPY_BOARD_DIR}/cmodules)
