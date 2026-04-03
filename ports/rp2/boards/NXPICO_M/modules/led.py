@@ -25,21 +25,24 @@ class Led():
         self.set_color([0,0,0])
     
     # Return a copy of the value of the LED as a list of 3 integers (r, g, b)
-    def get_value(self):
+    def get_value(self) -> list:
         return self._value.copy()
     
     # Set the value of the LED with a list of 3 integers (r, g, b)
-    def red(self):     self.set_color(list(RED))
-    def green(self):   self.set_color(list(GREEN))
-    def blue(self):    self.set_color(list(BLUE))
-    def white(self):   self.set_color(list(WHITE))
-    def yellow(self):  self.set_color(list(YELLOW))
-    def cyan(self):    self.set_color(list(CYAN))
-    def magenta(self): self.set_color(list(MAGENTA))
-    def orange(self):  self.set_color(list(ORANGE))
-    def off(self):     self.set_color(list(OFF))
+    def red(self) -> None:     self.set_color(list(RED))
+    def green(self) -> None:   self.set_color(list(GREEN))
+    def blue(self) -> None:    self.set_color(list(BLUE))
+    def white(self) -> None:   self.set_color(list(WHITE))
+    def yellow(self) -> None:  self.set_color(list(YELLOW))
+    def cyan(self) -> None:    self.set_color(list(CYAN))
+    def magenta(self) -> None: self.set_color(list(MAGENTA))
+    def orange(self) -> None:  self.set_color(list(ORANGE))
+    def off(self) -> None:     self.set_color(list(OFF))
 
-    def set_color(self, value: list):
+    # Set the value of the LED with a list of 3 integers (r, g, b). 
+    # Each value must be between 0 and 255, otherwise a ValueError is raised. 
+    # The method updates the internal state of the LED and writes the new color to the hardware using the neopixel library.
+    def set_color(self, value: list) -> None:
         if not isinstance(value, list) or len(value) != 3:
             raise ValueError("RGB value must be a list of 3 elements: (r, g, b)")
         val = value.copy()
