@@ -1,0 +1,22 @@
+{
+    "deploy": [
+        "../deploy.md"
+    ],
+    "docs": "",
+    "features": [
+        "Dual-core",
+        "External Flash",
+        "LTE-M/NB-IoT",
+        "NeoPixel LED",
+        "USB"
+    ],
+    "images": [],
+    "mcu": "rp2350",
+    "product": "nXPico M",
+    "thumbnail": "",
+    "url": "",
+    "variants": {
+        "RISCV": "RISC-V CPU mode"
+    },
+    "vendor": "neXo"
+}
