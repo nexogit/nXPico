@@ -130,7 +130,6 @@ class Modem:
     # Establish or disconnect an MQTT connection using the MQTTCONN command.
     # This method validates the input parameters and sends the appropriate command to the modem to manage the
     # MQTT connection. The method returns True if the modem responds with the expected response, and False otherwise.
-    # this method wait for 5 seconds a response with the expected string "#XMQTTEVT: 0,0" which indicate that the connection or disconnection was successful.
     # op must be an integer and either 0, 1 or 2, otherwise a ValueError is raised. 0 for disconnect, 1 for connect IPv4, 2 for connect IPv6
     # username must be a string, otherwise a ValueError is raised.
     # password must be a string, otherwise a ValueError is raised.
@@ -154,9 +153,28 @@ class Modem:
             return self.send_cmd(f'AT#XMQTTCONN={op},"{username}","{password}","{url}",{port}', "#XMQTTEVT: 0,0", 16, timeout_ms=5000)
         else:
             return self.send_cmd(f'AT#XMQTTCONN={op},"{username}","{password}","{url}",{port},{sec_tag}', "#XMQTTEVT: 0,0", 16, timeout_ms=5000)
-
+    
     # Check if the modem is currently connected to an MQTT broker.
     # Return True if the modem is connected to an MQTT broker, and False otherwise.
     def is_mqtt_conn(self):
         return self.send_cmd("AT#XMQTTCON?", "#XMQTTCON: 1", 16, timeout_ms=1000)
 
+
+    # Publish a message to an MQTT topic using the MQTTPUB command.
+    # This method validates the input parameters and sends the appropriate command to the modem to publish a message to an MQTT topic. The method returns True if the modem responds with the expected response, and False otherwise.
+    # topic must be a string, otherwise a ValueError is raised.
+    # msg must be a string, otherwise a ValueError is raised.
+    # qos must be an integer and either 0, 1 or 2, otherwise a ValueError is raised.
+    # retain must be an integer and either 0 or 1, otherwise a ValueError is raised.
+    # this method wait for 5 seconds a response with the expected string "OK" which indicate that the message was published successfully.
+    def mqtt_publish(self, topic:str, msg:str, qos:int=0, retain:int=0) -> bool:
+        if type(topic) is not str:
+            raise ValueError("topic must be a string")
+        if type(msg) is not str:
+            raise ValueError("msg must be a string")
+        if type(qos) is not int or qos not in (0, 1, 2):
+            raise ValueError("qos must be an integer and either 0, 1 or 2")
+        if type(retain) is not int or retain not in (0, 1):
+            raise ValueError("retain must be an integer and either 0 or 1")
+        return self.send_cmd(f'AT#XMQTTPUB="{topic}","{msg}",{qos},{retain}', "OK", 16, timeout_ms=5000)
+        
