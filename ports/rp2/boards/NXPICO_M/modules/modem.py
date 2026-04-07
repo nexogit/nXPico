@@ -187,4 +187,14 @@ class Modem:
             print("[Modem] MQTT publish successful")
             return True
         return False
-        
+    
+    
+    def mqtt_subscribe(self, topic:str, qos:int=0) -> bool:
+        if type(topic) is not str:
+            raise ValueError("topic must be a string")
+        if type(qos) is not int or qos not in (0, 1, 2):
+            raise ValueError("qos must be an integer and either 0, 1 or 2")
+        if self.send_cmd(f'AT#XMQTTSUB="{topic}",{qos}', "OK", 16, timeout_ms=5000):
+            print("[Modem] MQTT subscribe successful")
+            return True
+        return False
