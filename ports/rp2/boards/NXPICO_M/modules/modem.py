@@ -19,7 +19,8 @@ class Modem:
         self._CFUN_VALID_MODES = {1, 2, 4, 20, 21, 30, 31, 40, 41, 44}
         nrf9151.init()
         nrf9151.read(256)  # Clear any initial data from the modem
-    
+
+        
     # Send data to the modem using UART0. Data must be bytes or a string
     # This methods does not controll if the message is correctly sent and parsed
     def send(self, data: bytes) -> None:
@@ -45,7 +46,7 @@ class Modem:
     # num_bytes must be a positive integer, otherwise a ValueError is raised.
     # the maximum number of bytes read in each iteration is determined by num_bytes, which must be a positive integer. If num_bytes is not a positive integer, a ValueError is raised. 
     # The method will return a message indicating that no response was received within the timeout period if the timeout occurs.
-    def _wait_response(self, expected: str = "OK", num_bytes: int = 256, timeout_ms: int = 1000) -> str:
+    def wait_response(self, expected: str = "OK", num_bytes: int = 256, timeout_ms: int = 1000) -> str:
         if timeout_ms <= 0:
             raise ValueError("timeout_ms must be greater than 0")
         if num_bytes <= 0:
@@ -67,12 +68,14 @@ class Modem:
     # This method sends a command to the modem and waits for a response that contains the expected string.
     # this method add at the end of the command the carriage return and line feed characters ("\r\n") to ensure that the modem correctly interprets the command.
     # The method returns True if the expected response is received, and False otherwise.
-    # command must be a string, otherwise a ValueError is raised.
-    # expected must be a string, otherwise a ValueError is raised.
+    # command must be a string, otherwise a TypeError is raised.
+    # expected must be a string, otherwise a TypeError is raised.
     # num_bytes must be a positive integer, otherwise a ValueError is raised. num_of bytes is about the response
-    def send_cmd(self, command: str, expected: str = "OK", num_bytes: int=256, timeout_ms: int = 1000) -> bool:
+    def send_cmd(self, command: str, expected: str = "OK", num_bytes: int=256, timeout_ms: int = 1000, is_bool: bool=True) -> bool:
         self.send(command + "\r\n")
-        return True if expected in self._wait_response(expected, num_bytes, timeout_ms) else False
+        if not is_bool:
+            return self.wait_response(expected, num_bytes, timeout_ms)
+        return True if expected in self.wait_response(expected, num_bytes, timeout_ms) else False
 
 
     # Set the modem's functionality level using the CFUN command. 
@@ -90,3 +93,37 @@ class Modem:
         else:
             print("[Modem] Failed to set CFUN to mode", mode)
             return False
+
+    # Configure MQTT settings on the modem using the MQTTCFG command.
+    # This method validates the input parameters and sends the appropriate command to the modem to configure MQTT 
+    # The method returns True if the modem responds with the expected response, and False otherwise.
+    # client_id must be a string, otherwise a ValueError is raised.
+    # keep_alive must be an integer greater than 0, otherwise a ValueError is raised
+    # clean_session must be an integer and either 0 or 1, otherwise a ValueError is raised.
+    def mqtt_cfg(self, client_id: str, keep_alive: int=60, clean_session:int=0) -> bool:
+        if client_id is None or type(client_id) is not str:
+            raise ValueError("client_id must be a string")
+        if keep_alive <= 0:
+            raise ValueError("keep_alive must be an integer greater than 0")
+        if type(clean_session) is not int or clean_session not in (0, 1):
+            raise ValueError("clean_session must be an integer and either 0 or 1")
+        print(self.send_cmd(f'AT#XMQTTCFG="{client_id}",{keep_alive},{clean_session}', "OK", 16, timeout_ms=1000))
+        return True
+    
+    # Get the current MQTT configuration from the modem using the MQTTCFG? command.
+    # This method sends a command to the modem to retrieve the current MQTT configuration and waits for the response. 
+    # The method returns the MQTT configuration as a string if the modem responds successfully
+    # Get the current MQTT configuration from the modem using the MQTTCFG? command.
+    # This method sends a command to the modem to retrieve the current MQTT configuration and waits for the response. 
+    # The method returns the MQTT configuration as a string if the modem responds successfully
+    def get_mqtt_cfg(self) -> str:
+        response = self.send_cmd("AT#XMQTTCFG?", "OK", 256, timeout_ms=1000, is_bool=False)
+        if "ERROR" in response:
+            print("[Modem] Failed to get MQTT configuration")
+            return ""
+        for line in response.split("\r\n"):
+            if line.startswith("#XMQTTCFG"):
+                print("[Modem] MQTT configuration retrieved successfully")
+                return line
+        return ""
+
