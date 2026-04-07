@@ -73,7 +73,6 @@ class Modem:
     # num_bytes must be a positive integer, otherwise a ValueError is raised. num_of bytes is about the response
     def send_cmd(self, command: str, expected: str = "OK", num_bytes: int=256, timeout_ms: int = 1000, is_bool: bool=True) -> bool:
         self.send(command + "\r\n")
-        print(command + "\r\n")
         if not is_bool:
             return self.wait_response(expected, num_bytes, timeout_ms)
         return True if expected in self.wait_response(expected, num_bytes, timeout_ms) else False
@@ -108,7 +107,10 @@ class Modem:
             raise ValueError("keep_alive must be an integer greater than 0")
         if type(clean_session) is not int or clean_session not in (0, 1):
             raise ValueError("clean_session must be an integer and either 0 or 1")
-        return self.send_cmd(f'AT#XMQTTCFG="{client_id}",{keep_alive},{clean_session}', "OK", 16, timeout_ms=1000)
+        if self.send_cmd(f'AT#XMQTTCFG="{client_id}",{keep_alive},{clean_session}', "OK", 16, timeout_ms=1000):
+            print("[Modem] MQTT configuration set successfully")
+            return True
+        return False
     
     # Get the current MQTT configuration from the modem using the MQTTCFG? command.
     # This method sends a command to the modem to retrieve the current MQTT configuration and waits for the response. 
@@ -150,10 +152,15 @@ class Modem:
         if sec_tag is not None and type(sec_tag) is not int :
             raise ValueError("sec_tag must be an integer")
         if sec_tag is None:
-            return self.send_cmd(f'AT#XMQTTCONN={op},"{username}","{password}","{url}",{port}', "#XMQTTEVT: 0,0", 16, timeout_ms=5000)
+            if self.send_cmd(f'AT#XMQTTCONN={op},"{username}","{password}","{url}",{port}', "#XMQTTEVT: 0,0", 16, timeout_ms=5000):
+                print("[Modem] MQTT connection operation successful")
+                return True
         else:
-            return self.send_cmd(f'AT#XMQTTCONN={op},"{username}","{password}","{url}",{port},{sec_tag}', "#XMQTTEVT: 0,0", 16, timeout_ms=5000)
-    
+            if self.send_cmd(f'AT#XMQTTCONN={op},"{username}","{password}","{url}",{port},{sec_tag}', "#XMQTTEVT: 0,0", 16, timeout_ms=5000):
+                print("[Modem] MQTT connection operation successful")
+                return True
+        return False
+
     # Check if the modem is currently connected to an MQTT broker.
     # Return True if the modem is connected to an MQTT broker, and False otherwise.
     def is_mqtt_conn(self):
@@ -176,5 +183,8 @@ class Modem:
             raise ValueError("qos must be an integer and either 0, 1 or 2")
         if type(retain) is not int or retain not in (0, 1):
             raise ValueError("retain must be an integer and either 0 or 1")
-        return self.send_cmd(f'AT#XMQTTPUB="{topic}","{msg}",{qos},{retain}', "OK", 16, timeout_ms=5000)
+        if self.send_cmd(f'AT#XMQTTPUB="{topic}","{msg}",{qos},{retain}', "OK", 16, timeout_ms=5000):
+            print("[Modem] MQTT publish successful")
+            return True
+        return False
         
