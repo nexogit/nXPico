@@ -73,6 +73,7 @@ class Modem:
     # num_bytes must be a positive integer, otherwise a ValueError is raised. num_of bytes is about the response
     def send_cmd(self, command: str, expected: str = "OK", num_bytes: int=256, timeout_ms: int = 1000, is_bool: bool=True) -> bool:
         self.send(command + "\r\n")
+        print(command + "\r\n")
         if not is_bool:
             return self.wait_response(expected, num_bytes, timeout_ms)
         return True if expected in self.wait_response(expected, num_bytes, timeout_ms) else False
@@ -107,13 +108,12 @@ class Modem:
             raise ValueError("keep_alive must be an integer greater than 0")
         if type(clean_session) is not int or clean_session not in (0, 1):
             raise ValueError("clean_session must be an integer and either 0 or 1")
-        print(self.send_cmd(f'AT#XMQTTCFG="{client_id}",{keep_alive},{clean_session}', "OK", 16, timeout_ms=1000))
-        return True
+        return self.send_cmd(f'AT#XMQTTCFG="{client_id}",{keep_alive},{clean_session}', "OK", 16, timeout_ms=1000)
     
     # Get the current MQTT configuration from the modem using the MQTTCFG? command.
     # This method sends a command to the modem to retrieve the current MQTT configuration and waits for the response. 
     # The method returns the MQTT configuration as a string if the modem responds successfully
-    # Get the current MQTT configuration from the modem using the MQTTCFG? command.
+        # Get the current MQTT configuration from the modem using the MQTTCFG? command.
     # This method sends a command to the modem to retrieve the current MQTT configuration and waits for the response. 
     # The method returns the MQTT configuration as a string if the modem responds successfully
     def get_mqtt_cfg(self) -> str:
@@ -125,5 +125,38 @@ class Modem:
             if line.startswith("#XMQTTCFG"):
                 print("[Modem] MQTT configuration retrieved successfully")
                 return line
-        return ""
+        return ""  
+
+    # Establish or disconnect an MQTT connection using the MQTTCONN command.
+    # This method validates the input parameters and sends the appropriate command to the modem to manage the
+    # MQTT connection. The method returns True if the modem responds with the expected response, and False otherwise.
+    # this method wait for 5 seconds a response with the expected string "#XMQTTEVT: 0,0" which indicate that the connection or disconnection was successful.
+    # op must be an integer and either 0, 1 or 2, otherwise a ValueError is raised. 0 for disconnect, 1 for connect IPv4, 2 for connect IPv6
+    # username must be a string, otherwise a ValueError is raised.
+    # password must be a string, otherwise a ValueError is raised.
+    # url must be a string, otherwise a ValueError is raised.
+    # port must be an integer greater than 0 and less than or equal to 65535, otherwise a ValueError is raised.
+    # sec_tag must be an integer, otherwise a ValueError is raised. default value is None. if is None teh sec_tag is ignored.
+    def mqtt_conn(self, op:int, username:str, password:str, url:str, port:int, sec_tag:int=None) -> bool:
+        if type(op) is not int or op not in (0, 1, 2):
+            raise ValueError("op must be an integer and 0, 1 or 2: Disconnect, Connect IPv4, Connect IPv6")
+        if type(username) is not str:
+            raise ValueError("username must be a string")
+        if type(password) is not str:
+            raise ValueError("password must be a string")
+        if type(url) is not str:
+            raise ValueError("url must be a string")
+        if type(port) is not int or port <= 0 or port > 65535:
+            raise ValueError("port must be an integer greater than 0 and less than or equal to 65535")
+        if sec_tag is not None and type(sec_tag) is not int :
+            raise ValueError("sec_tag must be an integer")
+        if sec_tag is None:
+            return self.send_cmd(f'AT#XMQTTCONN={op},"{username}","{password}","{url}",{port}', "#XMQTTEVT: 0,0", 16, timeout_ms=5000)
+        else:
+            return self.send_cmd(f'AT#XMQTTCONN={op},"{username}","{password}","{url}",{port},{sec_tag}', "#XMQTTEVT: 0,0", 16, timeout_ms=5000)
+
+    # Check if the modem is currently connected to an MQTT broker.
+    # Return True if the modem is connected to an MQTT broker, and False otherwise.
+    def is_mqtt_conn(self):
+        return self.send_cmd("AT#XMQTTCON?", "#XMQTTCON: 1", 16, timeout_ms=1000)
 
