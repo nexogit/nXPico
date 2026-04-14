@@ -187,14 +187,112 @@ class Modem:
             print("[Modem] MQTT publish successful")
             return True
         return False
-    
-    
+        
+    # Subscribe to an MQTT topic using the MQTTUB command.
+    # This method validates the input parameters.
+    # topic must be a string, otherwise a ValueError is raised.
+    # qos must be an integer and either 0, 1 or 2, otherwise a ValueError is raised.
+    # The method returns True if the modem responds with the expected response
     def mqtt_subscribe(self, topic:str, qos:int=0) -> bool:
         if type(topic) is not str:
             raise ValueError("topic must be a string")
         if type(qos) is not int or qos not in (0, 1, 2):
             raise ValueError("qos must be an integer and either 0, 1 or 2")
-        if self.send_cmd(f'AT#XMQTTSUB="{topic}",{qos}', "OK", 16, timeout_ms=5000):
+        if self.send_cmd(f'AT#XMQTTSUB="{topic}",{qos}', "#XMQTTEVT: 7,0", 16, timeout_ms=5000):
             print("[Modem] MQTT subscribe successful")
+            return True
+        return False
+
+
+    # Write a certificate to the modem's secure storage using the CMNG command.
+    # This method validates the input parameters and sends the appropriate command to the modem to write a certificate to the modem's secure storage. 
+    # The method returns True if the modem responds with the expected response
+    # sec_tag must be an integer and between 0 and 2552147483647, otherwise a ValueError is raised.
+    # cert_type must be an integer and one of the following values: 0=Root CA, 1=Client cert, 2=Client private key, 3=PSK, 4=PSK identity, 5=Public key, 6=Device identity public  key, 7=Reserved, 8=Endorsement key, 9=Ownership key, 10=Nordic identity root CA, 11=Nordic base public key, 13=Asset encryption key. 
+    # If cert_type is not one of these values, a ValueError is raised.
+    # content must be a string, otherwise a ValueError is raised. Thihs is the certificate content that will be written to the modem's secure storage.
+    # psw is an optional parameter that must be a string if provided, otherwise a ValueError is raised.
+    # sha256 is an optional parameter that must be a string if provided, otherwise a ValueError is raised.
+    def write_certificate(self, sec_tag:int, cert_type:int, content:str, psw:str=None, sha256:str=None) -> bool:
+        if type(sec_tag) is not int or not 0 <= sec_tag <= 2552147483647:
+            raise ValueError("sec_tag must be an integer and beetween 0 and 2552147483647")
+        if type(cert_type) is not int or cert_type not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13):
+            raise ValueError("cert_type must be an integer: 0=Root CA, 1=Client cert, 2=Client private key, 3=PSK, 4=PSK identity, 5=Public key, 6=Device identity public key, 7=Reserved, 8=Endorsement key, 9=Ownership key, 10=Nordic identity root CA, 11=Nordic base public key, 13=Asset encryption key")
+        if type(content) is not str:
+            raise ValueError("content must be a string")
+        if psw is not None and type(psw) is not str:
+            raise ValueError("psw must be a string")
+        if sha256 is not None and type(sha256) is not str:
+            raise ValueError("sha256 must be a string")
+        cmd = f'AT%CMNG=0,{sec_tag},{cert_type},"{content}"'
+        if psw is not None:
+            cmd += f',"{psw}"'
+        if sha256 is not None:
+            cmd += f',"{sha256}"'
+        if self.send_cmd(cmd, "OK", 16, timeout_ms=5000):
+            print("[Modem] Certificate written successfully")
+            return True
+        return False
+
+
+    # List certificates stored in the modem's secure storage using the CMNG command with opcode 1.
+    # sec_tag must be an integer between 0 and 2552147483647, otherwise a ValueError is raised.
+    # cert_type is optional. If provided, must be a valid type integer; only that credential type is listed.
+    # Returns the raw modem response string on success, or an empty string on failure.
+    def list_certificate(self, sec_tag:int, cert_type:int=None) -> str:
+        if type(sec_tag) is not int or not 0 <= sec_tag <= 2552147483647:
+            raise ValueError("sec_tag must be an integer and beetween 0 and 2552147483647")
+        cmd = f'AT%CMNG=1,{sec_tag}'
+        if cert_type is not None:
+            if type(cert_type) is not int or cert_type not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13):
+                raise ValueError("type must be an integer: 0=Root CA, 1=Client cert, 2=Client private key, 3=PSK, 4=PSK identity, 5=Public key, 6=Device identity public key, 7=Reserved, 8=Endorsement key, 9=Ownership key, 10=Nordic identity root CA, 11=Nordic base public key, 13=Asset encryption key")
+            cmd += f',{cert_type}'
+        response = self.send_cmd(cmd, "OK", 1024, timeout_ms=5000, is_bool=False)
+        if "ERROR" in response:
+            print("[Modem] Failed to get certificate")
+            return ""
+        for line in response.split("\r\n"):
+            if line.startswith(f"%CMNG: {sec_tag},{cert_type if cert_type is not None else ''}"):
+                print("[Modem] Certificate listed successfully")
+                return response
+        return ""
+
+    
+    # Read the content of a specific certificate from the modem's secure storage using the CMNG command with opcode 2.
+    # sec_tag must be an integer between 0 and 2552147483647, otherwise a ValueError is raised.
+    # cert_type must be a valid type integer, otherwise a ValueError is raised.
+    # Returns the raw modem response string on success, or an empty string on failure.
+    def read_certificate(self, sec_tag:int, cert_type:int) -> str:
+        if type(sec_tag) is not int or not 0 <= sec_tag <= 2552147483647:
+            raise ValueError("sec_tag must be an integer and beetween 0 and 2552147483647")
+        if type(cert_type) is not int or cert_type not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13):
+            raise ValueError("type must be an integer: 0=Root CA, 1=Client cert, 2=Client private key, 3=PSK, 4=PSK identity, 5=Public key, 6=Device identity public key, 7=Reserved, 8=Endorsement key, 9=Ownership key, 10=Nordic identity root CA, 11=Nordic base public key, 13=Asset encryption key")
+        cmd = f'AT%CMNG=2,{sec_tag}, {cert_type}'
+        print(cmd)
+        response = self.send_cmd(cmd, "OK", 1024, timeout_ms=5000, is_bool=False)
+        if "ERROR" in response:
+            print("[Modem] Failed to get certificate")
+            return ""
+        for line in response.split("\r\n"):
+            if line.startswith(f"%CMNG: {sec_tag},{cert_type if cert_type is not None else ''}"):
+                print("[Modem] Certificate read successfully")
+                return response
+        return ""
+
+    
+
+
+    
+    # Delete a specific certificate from the modem's secure storage using the CMNG command with opcode 3.
+    # sec_tag must be an integer between 0 and 2552147483647, otherwise a ValueError is raised.
+    # cert_type must be a valid type integer, otherwise a ValueError is raised.
+    # Returns True if the modem responds with OK, False otherwise.
+    def delete_certificate(self, sec_tag:int, cert_type:int) -> str:
+        if type(sec_tag) is not int or not 0 <= sec_tag <= 2552147483647:
+            raise ValueError("sec_tag must be an integer and beetween 0 and 2552147483647")
+        if type(cert_type) is not int or cert_type not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13):
+            raise ValueError("type must be an integer: 0=Root CA, 1=Client cert, 2=Client private key, 3=PSK, 4=PSK identity, 5=Public key, 6=Device identity public key, 7=Reserved, 8=Endorsement key, 9=Ownership key, 10=Nordic identity root CA, 11=Nordic base public key, 13=Asset encryption key")
+        if self.send_cmd(f'AT%CMNG=3,{sec_tag}, {cert_type}', "OK", 16, timeout_ms=5000):
+            print("[Modem] Certificate deleted successfully")
             return True
         return False
